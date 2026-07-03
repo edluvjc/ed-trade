@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ED TRADE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --deep:#061c30; --mid:#0a2f4e; --panel:rgba(255,255,255,.07);
+    --panelline:rgba(255,255,255,.10); --ink:#f2f7fb; --sub:#8fb0c9;
+    --hair:rgba(255,255,255,.22); --up:#30d158; --down:#ff453a; --foam:#5ac8fa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:linear-gradient(180deg,var(--deep) 0%,var(--mid) 55%,#0d3a5c 100%);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.47; min-height:100vh;
+  }
+  .nav{
+    position:sticky;top:0;z-index:10;
+    background:rgba(6,28,48,.65);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    border-bottom:1px solid rgba(255,255,255,.10);
+  }
+  .nav .in{
+    max-width:980px;margin:0 auto;padding:14px 22px;
+    display:flex;justify-content:space-between;align-items:baseline;
+  }
+  .nav .brand{font-size:14px;font-weight:700;letter-spacing:.08em;color:var(--foam)}
+  .nav .meta{font-size:12px;color:var(--sub)}
+
+  .hero{max-width:980px;margin:0 auto;padding:72px 22px 48px;text-align:center}
+  .hero .kicker{font-size:17px;color:var(--sub);font-weight:400}
+  .hero .headline{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size:clamp(56px,11vw,104px);
+    font-weight:600;letter-spacing:-.03em;line-height:1.04;
+    margin:6px 0 10px;
+    font-variant-numeric:tabular-nums;
+  }
+  .hero .headline.lead{color:var(--up)}
+  .hero .headline.trail{color:var(--down)}
+  .hero .subline{font-size:clamp(19px,3vw,24px);font-weight:400;color:var(--ink);letter-spacing:-.015em}
+  .hero .footnote{
+    max-width:56ch;margin:22px auto 0;
+    font-size:12px;color:var(--sub);line-height:1.6;
+  }
+
+  .wrap{max-width:980px;margin:0 auto;padding:0 22px 88px}
+  .card{
+    background:var(--panel);border:1px solid var(--panelline);border-radius:18px;
+    padding:26px 24px;margin-bottom:20px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  }
+  .card h2{
+    font-size:21px;font-weight:600;letter-spacing:-.02em;margin-bottom:16px;
+  }
+  .legend{display:flex;gap:20px;font-size:13px;color:var(--sub);margin-bottom:14px}
+  .legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+  .dot.s{background:var(--foam)} .dot.b{background:var(--hair)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+  .tile{background:var(--panel);border:1px solid var(--panelline);border-radius:18px;
+    padding:22px 20px;text-align:center;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .tile .v{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Helvetica,Arial,sans-serif;
+    font-size:clamp(26px,4.5vw,34px);font-weight:600;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .tile .v.up{color:var(--up)} .tile .v.down{color:var(--down)}
+  .tile .k{font-size:13px;color:var(--sub);margin-top:4px}
+
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px;
+    background:rgba(6,28,48,.35)}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+  th{font-size:12px;font-weight:600;color:var(--sub);text-align:left;
+     padding:16px 20px 10px;border-bottom:1px solid var(--panelline)}
+  td{padding:13px 20px;border-bottom:1px solid rgba(255,255,255,.06);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  td.buy{color:var(--up);font-weight:600} td.sell{color:var(--down);font-weight:600}
+
+  .empty{padding:44px 20px;text-align:center;color:var(--sub);font-size:14px;
+    background:var(--panel);border:1px solid var(--panelline);border-radius:18px}
+  .rulesnote{font-size:13px;color:var(--sub);line-height:1.6;margin:-6px 0 18px;max-width:64ch}
+  .action{display:flex;align-items:center;gap:14px;background:rgba(6,28,48,.45);border-radius:14px;
+    padding:14px 16px;margin-bottom:10px}
+  .action:last-child{margin-bottom:0}
+  .badge{flex:none;font-size:12px;font-weight:700;letter-spacing:.04em;
+    padding:5px 12px;border-radius:999px;color:#06121e}
+  .badge.buy{background:var(--up)} .badge.hold{background:#3f6884}
+  .badge.sell{background:var(--down)}
+  .action .tk{font-weight:600;font-size:16px;min-width:56px;font-variant-numeric:tabular-nums}
+  .action .why{font-size:13px;color:var(--sub);line-height:1.45}
+  .action .when{margin-left:auto;flex:none;font-size:13px;color:var(--foam);
+    font-variant-numeric:tabular-nums;text-align:right}
+  .legal{
+    max-width:980px;margin:0 auto;padding:0 22px 60px;
+    font-size:12px;color:var(--sub);line-height:1.6;
+    border-top:1px solid rgba(255,255,255,.10);padding-top:22px;
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .hero>*{animation:rise .6s cubic-bezier(.25,.1,.25,1) both}
+    .hero .headline{animation-delay:.08s}
+    .hero .subline{animation-delay:.16s}
+    .hero .footnote{animation-delay:.24s}
+    @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  }
+  @media (max-width:400px){
+    .hero{padding:52px 18px 36px}
+    .card{padding:20px 16px}
+    th,td{padding-left:14px;padding-right:14px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav"><div class="in">
+  <span class="brand">ED TRADE</span>
+  <span class="meta" id="navmeta">Paper account</span>
+</div></nav>
+
+<header class="hero">
+  <p class="kicker" id="kicker">Loading&hellip;</p>
+  <h1 class="headline" id="headline">&nbsp;</h1>
+  <p class="subline" id="subline"></p>
+  <p class="footnote" id="qualifier"></p>
+</header>
+
+<div class="wrap">
+  <section class="card" id="actionscard" style="display:none">
+    <h2>What the ruleset says</h2>
+    <p class="rulesnote">Mechanical output of the strategy's rules for the paper
+    account. Exact instructions, exact timeframes — and still a hypothesis
+    under test, not a prediction. Until the sample clears the significance
+    threshold above, following these with real money is gambling on an
+    unproven rule.</p>
+    <div id="actions"></div>
+  </section>
+
+  <section class="card" id="holdingscard" style="display:none">
+    <h2>Your holdings</h2>
+    <p class="rulesnote" id="holdingsmeta">Your actual positions, priced from
+    the free quote feed. Display only — nothing on this page can trade.</p>
+    <div class="tablewrap"><table id="holdingstable"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>The race</h2>
+    <div class="legend">
+      <span><span class="dot s"></span>Strategy</span>
+      <span><span class="dot b"></span>SPY buy &amp; hold</span>
+      <span>Both start at 100</span>
+    </div>
+    <canvas id="chart" height="120"></canvas>
+  </section>
+
+  <div class="grid" id="stats"></div>
+
+  <section>
+    <h2 style="font-size:21px;font-weight:600;letter-spacing:-.02em;margin:8px 4px 14px">Trades</h2>
+    <div id="trades"><div class="empty">No trades yet. When the paper account acts, it shows up here.</div></div>
+  </section>
+</div>
+
+<footer class="legal">
+  Paper trading only. Snapshots are taken on each scheduled run, so this
+  page can lag reality by up to two hours. Results below the significance
+  threshold are labeled as such because a small sample cannot distinguish
+  skill from luck, in either direction. This is an experiment log, not
+  investment advice. ED TRADE has no affiliation with E*TRADE — and no
+  affiliation with certainty, either.
+</footer>
+
+<script>
+const MIN_TRADES_FOR_SIGNAL = 30;
+const MIN_DAYS = 90;
+
+async function load(path){
+  try{ const r = await fetch(path + '?t=' + Date.now()); if(!r.ok) return null; return await r.text(); }
+  catch(e){ return null; }
+}
+function parseCSV(text){
+  const lines = text.trim().split('\n');
+  const head = lines[0].split(',');
+  return lines.slice(1).map(l=>{
+    const cells = l.split(',');
+    return Object.fromEntries(head.map((h,i)=>[h, cells[i]]));
+  });
+}
+
+(async function(){
+  const perfRaw = await load('performance.json');
+  const perf = perfRaw ? JSON.parse(perfRaw) : [];
+  const tradesRaw = await load('trades_log.csv');
+  const trades = tradesRaw ? parseCSV(tradesRaw) : [];
+  const actionsRaw = await load('actions.json');
+  const actions = actionsRaw ? JSON.parse(actionsRaw) : null;
+
+  const holdRaw = await load('my_holdings.json');
+  if(holdRaw){
+    const H = JSON.parse(holdRaw);
+    if(H.positions && H.positions.length){
+      const pf=(v,dec=1)=>v==null?'\u2014':((v>=0?'+':'\u2212')+Math.abs(v).toFixed(dec)+'%');
+      const cls=v=>v==null?'':(v>=0?'buy':'sell');
+      let rows = H.positions.map(p=> p.error
+        ? `<tr><td>${p.ticker}</td><td colspan="5" style="color:#86868b">${p.error}</td></tr>`
+        : `<tr><td style="font-weight:600">${p.ticker}</td><td>${p.shares}</td>`+
+          `<td>$${p.price.toLocaleString()}</td><td>$${p.value.toLocaleString()}</td>`+
+          `<td class="${cls(p.day_change_pct)}">${pf(p.day_change_pct,2)}</td>`+
+          `<td class="${cls(p.gain_pct)}">${pf(p.gain_pct)}</td></tr>`).join('');
+      document.getElementById('holdingstable').innerHTML =
+        `<thead><tr><th>Ticker</th><th>Shares</th><th>Price</th><th>Value</th><th>Today</th><th>Total</th></tr></thead><tbody>${rows}</tbody>`;
+      const meta = document.getElementById('holdingsmeta');
+      meta.textContent = `$${H.total_value.toLocaleString()} total` +
+        (H.total_gain_pct!=null?`, ${pf(H.total_gain_pct)} vs cost basis`:'') +
+        `, as of ${H.as_of.slice(0,16).replace('T',' ')} UTC. Display only \u2014 nothing on this page can trade.`;
+      document.getElementById('holdingscard').style.display='';
+    }
+  }
+
+  if(actions && (actions.buy.length || actions.hold.length || actions.sell.length)){
+    const row=(badge,cls,tk,why,when)=>
+      `<div class="action"><span class="badge ${cls}">${badge}</span>`+
+      `<span class="tk">${tk}</span><span class="why">${why}</span>`+
+      (when?`<span class="when">${when}</span>`:'')+`</div>`;
+    let h='';
+    actions.sell.forEach(a=>h+=row('SELL','sell',a.ticker,a.why,'now'));
+    actions.hold.forEach(a=>h+=row('HOLD','hold',a.ticker,a.why,'exit '+a.exit_date));
+    actions.buy.forEach(a=>h+=row('BUY','buy',a.ticker,a.why+' · '+a.detail,''));
+    document.getElementById('actions').innerHTML=h;
+    document.getElementById('actionscard').style.display='';
+  }
+
+  const kicker = document.getElementById('kicker');
+  const headline = document.getElementById('headline');
+  const subline = document.getElementById('subline');
+  const qual = document.getElementById('qualifier');
+
+  if(perf.length < 2){
+    kicker.textContent = 'The experiment';
+    headline.textContent = 'Awaiting data.';
+    subline.textContent = perf.length === 0
+      ? 'The first scheduled run writes the first snapshot.'
+      : 'One snapshot recorded. A race needs two points.';
+    return;
+  }
+
+  const e0 = perf[0].equity, s0 = perf[0].spy;
+  const labels = perf.map(p=>p.ts.slice(0,10));
+  const stratSeries = perf.map(p=>100*p.equity/e0);
+  const spySeries = perf.map(p=>100*p.spy/s0);
+  const stratNow = stratSeries[stratSeries.length-1];
+  const spyNow = spySeries[spySeries.length-1];
+  const spread = stratNow - spyNow;
+  const leading = spread >= 0;
+
+  const firstTs = new Date(perf[0].ts), lastTs = new Date(perf[perf.length-1].ts);
+  const days = Math.max(1, Math.round((lastTs-firstTs)/86400000));
+  const nTrades = trades.filter(t=>t.action==='BUY').length;
+
+  kicker.textContent = leading ? 'The strategy is ahead.' : 'The market is ahead.';
+  headline.textContent = (leading?'+':'\u2212') + Math.abs(spread).toFixed(1) + ' pts';
+  headline.className = 'headline ' + (leading ? 'lead':'trail');
+  subline.textContent = `versus SPY over ${days} day${days===1?'':'s'}.`;
+
+  const significant = nTrades >= MIN_TRADES_FOR_SIGNAL && days >= MIN_DAYS;
+  qual.textContent = significant
+    ? `${nTrades} trades over ${days} days. The sample is large enough to start meaning something. Compare with the null test before concluding.`
+    : `${nTrades} trades over ${days} days \u2014 below the ${MIN_TRADES_FOR_SIGNAL}-trade, ${MIN_DAYS}-day threshold. At this sample size, this result is statistically indistinguishable from luck, in either direction.`;
+
+  document.getElementById('navmeta').textContent =
+    'Updated ' + perf[perf.length-1].ts.slice(0,16).replace('T',' ') + ' UTC';
+
+  new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{labels,
+      datasets:[
+        {data:stratSeries,borderColor:'#5ac8fa',borderWidth:2.5,pointRadius:0,tension:.3},
+        {data:spySeries,borderColor:'rgba(255,255,255,.30)',borderWidth:2.5,pointRadius:0,tension:.3}
+      ]},
+    options:{
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'rgba(6,28,48,.95)',cornerRadius:10,padding:10,
+        titleFont:{family:'-apple-system,Helvetica,Arial',size:12},
+        bodyFont:{family:'-apple-system,Helvetica,Arial',size:12},
+        callbacks:{label:c=>(c.datasetIndex===0?'Strategy ':'SPY ')+c.parsed.y.toFixed(1)}
+      }},
+      scales:{
+        x:{grid:{display:false},border:{display:false},
+           ticks:{maxTicksLimit:5,color:'#8fb0c9',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,.08)'},border:{display:false},
+           ticks:{color:'#8fb0c9',font:{size:11},maxTicksLimit:5}}
+      },
+      interaction:{intersect:false,mode:'index'}
+    }
+  });
+
+  const up = v => v>=0;
+  const fmt = v => (v>=0?'+':'\u2212') + Math.abs(v).toFixed(1) + '%';
+  const tile=(v,k,cls)=>`<div class="tile"><div class="v ${cls||''}">${v}</div><div class="k">${k}</div></div>`;
+  document.getElementById('stats').innerHTML =
+    tile(fmt(stratNow-100),'Strategy', up(stratNow-100)?'up':'down') +
+    tile(fmt(spyNow-100),'SPY', up(spyNow-100)?'up':'down') +
+    tile(nTrades,'Trades') +
+    tile(days,'Days running');
+
+  if(trades.length){
+    const rows = trades.slice(-15).reverse().map(t=>{
+      const cls = t.action==='BUY'?'buy':(t.action==='SELL'?'sell':'');
+      return `<tr><td>${(t.timestamp||'').slice(0,10)}</td><td class="${cls}">${t.action||''}</td><td>${t.ticker||''}</td><td>${t.notional?('$'+Number(t.notional).toLocaleString()):'\u2014'}</td><td style="color:#8fb0c9">${(t.reason||'').replace(/_/g,' ')}</td></tr>`;
+    }).join('');
+    document.getElementById('trades').innerHTML =
+      `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Action</th><th>Ticker</th><th>Amount</th><th>Reason</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+})();
+</script>
+</body>
+</html>
