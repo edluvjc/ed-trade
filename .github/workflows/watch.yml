@@ -38,6 +38,12 @@ jobs:
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python watcher/paper_trade.py maintain
 
+      - name: Macro watch
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python watcher/macro.py || true
+
       - name: Generate actions
         run: python watcher/actions.py || true
 
