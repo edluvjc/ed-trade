@@ -1,0 +1,41 @@
+name: Factor Engine
+
+on:
+  schedule:
+    # Mondays 13:00 UTC (pre-open US), after the weekend filings settle
+    - cron: "0 13 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  factors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run factor job
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          FINNHUB_KEY: ${{ secrets.FINNHUB_KEY }}
+        run: python watcher/factor_job.py
+
+      - name: Persist state
+        run: |
+          git config user.name "watcher-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git pull --rebase || true
+          git add watcher/open_positions.json watcher/trades_log.csv watcher/fundamentals_cache.json docs/factor_ranking.json || true
+          git diff --cached --quiet || git commit -m "factor: $(date -u +%F)"
+          git push
