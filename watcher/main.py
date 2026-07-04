@@ -322,6 +322,14 @@ def main():
         send_telegram(format_cluster_alert(cluster, ctx, related_news))
         seen.add(key)
         alerts_sent += 1
+        # Auto-enter the paper account on every new cluster, so the
+        # rule is tested purely, with no human selection bias. Paper
+        # money only; enter() itself enforces position and count caps.
+        try:
+            from paper_trade import enter
+            enter(cluster["ticker"], reason="auto_cluster")
+        except Exception as e:
+            print(f"[warn] auto paper entry failed: {e}", file=sys.stderr)
         time.sleep(1)
 
     # Also alert on fresh news for previously-flagged tickers
