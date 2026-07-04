@@ -84,8 +84,11 @@ def main():
             break
         if ticker in positions:
             continue
-        enter(ticker, reason="factor_top")
-        free -= 1
+        try:
+            if enter(ticker, reason="factor_top"):
+                free -= 1
+        except Exception as e:
+            print(f"[warn] factor entry {ticker} failed: {e}")
     print("Factor job complete.")
 
 
