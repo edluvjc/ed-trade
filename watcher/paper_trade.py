@@ -75,43 +75,87 @@ def save_positions(p):
     POSITIONS_FILE.write_text(json.dumps(p, indent=2))
 
 
+def latest_price(ticker):
+    """Best-effort latest trade price from Alpaca's free data feed."""
+    try:
+        r = requests.get(
+            f"https://data.alpaca.markets/v2/stocks/{ticker}/trades/latest",
+            headers=HEADERS, timeout=15,
+        )
+        if r.ok:
+            return float(r.json()["trade"]["p"])
+    except Exception:
+        pass
+    return None
+
+
 def enter(ticker, reason="cluster_signal"):
-    """Open a paper position sized at POSITION_FRACTION of equity."""
+    """Open a paper position sized at POSITION_FRACTION of equity.
+    Tries a notional (dollar-amount) order first; if Alpaca rejects
+    it (non-fractionable asset, or market closed), falls back to a
+    whole-share order queued for the next open. Never raises: a
+    failed entry is logged and skipped so one bad ticker cannot
+    kill the run."""
     if not KEY:
         print("[dry-run] Alpaca not configured; would buy", ticker)
-        return
+        return False
     positions = load_positions()
     if ticker in positions:
         print(f"Already holding {ticker}, skipping")
-        return
+        return False
     if len(positions) >= MAX_OPEN_POSITIONS:
         print("Max positions reached, skipping", ticker)
-        return
-    equity = account_equity()
+        return False
+    try:
+        equity = account_equity()
+    except Exception as e:
+        print(f"[warn] could not read account equity: {e}", file=sys.stderr)
+        return False
     notional = round(equity * POSITION_FRACTION, 2)
-    order = api(
-        "POST",
-        "/orders",
-        json={
-            "symbol": ticker,
-            "notional": str(notional),
-            "side": "buy",
-            "type": "market",
-            "time_in_force": "day",
-        },
-    )
+
+    order = None
+    try:
+        order = api(
+            "POST", "/orders",
+            json={"symbol": ticker, "notional": str(notional),
+                  "side": "buy", "type": "market", "time_in_force": "day"},
+        )
+        placed = notional
+    except Exception as e:
+        print(f"[info] notional order for {ticker} rejected ({e}); "
+              "trying whole-share fallback", file=sys.stderr)
+        price = latest_price(ticker)
+        qty = int(notional // price) if price else 0
+        if qty < 1:
+            print(f"[warn] skipping {ticker}: no price or too expensive "
+                  "for one share at this position size", file=sys.stderr)
+            return False
+        try:
+            order = api(
+                "POST", "/orders",
+                json={"symbol": ticker, "qty": str(qty),
+                      "side": "buy", "type": "market",
+                      "time_in_force": "day"},
+            )
+            placed = round(qty * price, 2)
+        except Exception as e2:
+            print(f"[warn] skipping {ticker}: fallback order also "
+                  f"rejected ({e2})", file=sys.stderr)
+            return False
+
     positions[ticker] = {
         "entered": datetime.now(timezone.utc).isoformat(),
-        "notional": notional,
+        "notional": placed,
         "order_id": order.get("id", ""),
         "reason": reason,
     }
     save_positions(positions)
     log_trade(
         [datetime.now(timezone.utc).isoformat(), "BUY", ticker, "",
-         notional, reason, equity]
+         placed, reason, equity]
     )
-    print(f"Paper-bought ${notional} of {ticker}")
+    print(f"Paper-bought ${placed} of {ticker}")
+    return True
 
 
 def exit_stale():
