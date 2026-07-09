@@ -40,7 +40,8 @@ LOG_FILE = Path(__file__).parent / "trades_log.csv"
 
 POSITION_FRACTION = 0.05   # 5% of paper equity per signal
 HOLD_DAYS = 30
-MAX_OPEN_POSITIONS = 10
+STOP_LOSS_PCT = 0.10   # exit early if down 10% from entry
+MAX_OPEN_POSITIONS = 12
 
 
 def api(method, path, **kwargs):
@@ -148,6 +149,7 @@ def enter(ticker, reason="cluster_signal"):
         "notional": placed,
         "order_id": order.get("id", ""),
         "reason": reason,
+        "entry_price": latest_price(ticker),
     }
     save_positions(positions)
     log_trade(
@@ -159,24 +161,31 @@ def enter(ticker, reason="cluster_signal"):
 
 
 def exit_stale():
-    """Close positions past HOLD_DAYS."""
+    """Close positions past HOLD_DAYS, or down STOP_LOSS_PCT from
+    entry (the stop-loss runs every cycle, so worst case a loser
+    lives ~2 hours past the threshold)."""
     if not KEY:
         return
     positions = load_positions()
     now = datetime.now(timezone.utc)
     for ticker, meta in list(positions.items()):
         entered = datetime.fromisoformat(meta["entered"])
-        if now - entered < timedelta(days=HOLD_DAYS):
+        expired = now - entered >= timedelta(days=HOLD_DAYS)
+        stopped = False
+        entry_px = meta.get("entry_price")
+        if not expired and entry_px:
+            cur = latest_price(ticker)
+            if cur and cur <= entry_px * (1 - STOP_LOSS_PCT):
+                stopped = True
+        if not (expired or stopped):
             continue
+        why = f"hold_expired_{HOLD_DAYS}d" if expired else               f"stop_loss_{int(STOP_LOSS_PCT*100)}pct"
         try:
             api("DELETE", f"/positions/{ticker}")
             equity = account_equity()
-            log_trade(
-                [now.isoformat(), "SELL", ticker, "", "",
-                 f"hold_expired_{HOLD_DAYS}d", equity]
-            )
+            log_trade([now.isoformat(), "SELL", ticker, "", "", why, equity])
             del positions[ticker]
-            print(f"Paper-sold {ticker} after {HOLD_DAYS} days")
+            print(f"Paper-sold {ticker} ({why})")
         except Exception as e:
             print(f"[warn] exit {ticker} failed: {e}", file=sys.stderr)
     save_positions(positions)
