@@ -31,12 +31,20 @@ jobs:
           FINNHUB_KEY: ${{ secrets.FINNHUB_KEY }}
         run: python watcher/factor_job.py
 
+      - name: Trend template sleeve
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: python watcher/trend.py || true
+
       - name: Persist state
         if: always()
         run: |
           git config user.name "watcher-bot"
           git config user.email "bot@users.noreply.github.com"
           git pull --rebase || true
-          git add watcher/open_positions.json watcher/trades_log.csv watcher/fundamentals_cache.json docs/factor_ranking.json || true
+          git add watcher/open_positions.json watcher/trades_log.csv watcher/fundamentals_cache.json docs/factor_ranking.json docs/trend_ranking.json || true
           git diff --cached --quiet || git commit -m "factor: $(date -u +%F)"
           git push
